@@ -1,12 +1,76 @@
-import React from 'react'
-import { useDispatch } from 'react-redux'
+import React, { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { toggleMenu } from '../utils/appSlice';
+import { YOUTUBE_SEARCH_API } from '../utils/constants';
+import store from '../utils/store';
+import { cacheResults } from '../utils/searchSlice';
+
+/**
+ * Concepts
+ * Debouncing
+ * 
+ */
 
 const Head = () => {
+    const [searchQuery, setSearchQuery] = useState("");
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    // const dispatch = useDispatch();
+    // cacheResults
+    const searchCache = useSelector((store) => store.search);
     const dispatch = useDispatch();
     const toggleMenuHandler = () => {
         dispatch(toggleMenu());
     }
+
+    useEffect(() => {
+
+        console.log('***********************');
+        console.log(searchQuery)
+        console.log(searchCache)
+        console.log('***********************');
+        const timer = setTimeout(() => {
+            if (searchCache[searchQuery]) {
+                setSuggestions(searchCache[searchQuery])
+            }
+            else {
+                getSearchSuggestions()
+            }
+        }, 200);
+
+        // when useEffect will call again, first it will call the return statement,
+        // then call the code inside useEffect,
+        // its called debouncing
+        return () => {
+            clearTimeout(timer)
+        }
+        // make an API call after each key express
+
+        // if the diff between 2 api calls < 200ms
+        // decline the api call
+    }, [searchQuery]);
+    /**
+     * key-i
+     * -render the component
+     * -useEffect()
+     * - start timer to make API call after 200ms
+     * 
+     * 
+     * key - ip
+     * - destroy the component (useEffect return method)
+     * - re-render the component
+     * -useEffect()
+     * - start timer => make api calls after 200ms
+     */
+    const getSearchSuggestions = async () => {
+        console.log('API CALL: ', searchQuery)
+        const data = await fetch(YOUTUBE_SEARCH_API + searchQuery);
+        const json = await data.json();
+        setSuggestions(json[1]);
+        console.log(json[1])
+        dispatch(cacheResults( { [searchQuery]: json[1]  }))
+    }
+
     return (
         <div className='grid grid-flow-col p-2 m-2 shadow-lg'>
             <div className='flex col-span-1'>
@@ -24,10 +88,23 @@ const Head = () => {
                 </a>
             </div>
 
-            <div className='col-span-10 flex justify-center items-center'>
-                <input className='w-1/2 pl-100 text my-7 border border-gray-400 rounded-l-full' type="text" />
-                <button className='border border-gray-400 rounded-r-full px-3 bg-gray-100'>🔍</button>
+            <div className='col-span-10'>
+                <div>
+                    <input
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setShowSuggestions(false)}
+                        className='w-1/2 pl-100 px-2 text my-7 border border-gray-400 rounded-l-full' type="text" />
+                    <button className='border border-gray-400 rounded-r-full px-3 bg-gray-100'>🔍</button>
+                </div>
+                {showSuggestions && <div className='fixed px-2 py-0 bg-white w-[38rem] rounded-lg shadow-lg border border-gray-50'>
+                    <ul>
+                        {suggestions.map(s => <li key={s} className="py-2 hover:bg-gray-100">{s}</li>)}
+                    </ul>
+                </div>}
             </div>
+
             <div className='col-span-1'>
                 <img
                     className='h-8 my-6'
